@@ -10,82 +10,147 @@
 </head>
 <body>
   <div class="app">
-    <header>
-      <div class="logo">🔥 Calorie Track</div>
-      <p class="subtitle">Your daily nutrition companion</p>
+    <header class="app-header">
+      <div>
+        <div class="logo">🔥 Calorie Track</div>
+        <p class="subtitle">Your daily nutrition companion</p>
+      </div>
+      <span class="version">v1.1</span>
     </header>
 
     <main>
-      <section class="card dashboard">
-        <p class="eyebrow">DAILY OVERVIEW</p>
-        <h1>Today's Calories</h1>
-        <p id="todayDate"></p>
+      <section id="homePage" class="page active">
+        <div class="card dashboard">
+          <p class="eyebrow">DAILY OVERVIEW</p>
+          <h1>Today's Calories</h1>
+          <p id="todayDate"></p>
 
-        <div class="calorie-ring">
-          <div class="ring-content">
-            <strong id="remaining">2000</strong>
-            <span>kcal remaining</span>
-          </div>
-        </div>
-
-        <div class="calorie-stats">
-          <div><strong id="goal">2000</strong><span>Goal</span></div>
-          <div><strong id="consumed">0</strong><span>Eaten</span></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Macronutrients</h2>
-        <div id="macros"></div>
-      </section>
-
-      <section class="card">
-        <h2>Add Food</h2>
-        <form id="foodForm">
-          <label for="foodName">Food name</label>
-          <input id="foodName" type="text" placeholder="e.g. Chicken breast" required maxlength="80">
-
-          <div class="form-grid">
-            <div>
-              <label for="calories">Calories</label>
-              <input id="calories" type="number" min="0" max="10000" step="0.1" required placeholder="kcal">
-            </div>
-            <div>
-              <label for="protein">Protein (g)</label>
-              <input id="protein" type="number" min="0" max="1000" step="0.1" required placeholder="0">
-            </div>
-            <div>
-              <label for="carbs">Carbs (g)</label>
-              <input id="carbs" type="number" min="0" max="1000" step="0.1" required placeholder="0">
-            </div>
-            <div>
-              <label for="fat">Fat (g)</label>
-              <input id="fat" type="number" min="0" max="1000" step="0.1" required placeholder="0">
+          <div class="calorie-ring">
+            <div class="ring-content">
+              <strong id="remaining">2000</strong>
+              <span>kcal remaining</span>
             </div>
           </div>
 
-          <label for="meal">Meal</label>
-          <select id="meal">
-            <option>Breakfast</option>
-            <option>Lunch</option>
-            <option>Dinner</option>
-            <option>Snack</option>
-          </select>
+          <div class="calorie-stats">
+            <div>
+              <strong id="goal">2000</strong>
+              <span>Goal</span>
+            </div>
+            <div>
+              <strong id="consumed">0</strong>
+              <span>Eaten</span>
+            </div>
+          </div>
+        </div>
 
-          <button type="submit" class="primary-btn">+ Add Food</button>
-        </form>
+        <section class="card">
+          <h2>Macronutrients</h2>
+          <div id="macros"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <h2>Today's Food</h2>
+            <button class="text-btn" id="openDiary">View diary →</button>
+          </div>
+          <div id="homeFoodList"></div>
+        </section>
       </section>
 
-      <section class="card">
-        <div class="section-heading">
-          <h2>Food Diary</h2>
-          <span id="foodCount">0 foods</span>
+      <section id="diaryPage" class="page">
+        <div class="page-title">
+          <p class="eyebrow">YOUR NUTRITION</p>
+          <h1>Food Diary</h1>
         </div>
-        <div id="foodList"></div>
+
+        <div class="card date-navigation">
+          <button id="previousDay" class="date-btn" aria-label="Previous day">‹</button>
+          <div>
+            <strong id="selectedDateLabel">Today</strong>
+            <p id="selectedDateFull"></p>
+          </div>
+          <button id="nextDay" class="date-btn" aria-label="Next day">›</button>
+        </div>
+
+        <div class="diary-summary card">
+          <span>Daily Calories</span>
+          <strong id="diaryCalories">0 kcal</strong>
+        </div>
+
+        <div id="mealSections"></div>
+      </section>
+
+      <section id="statsPage" class="page">
+        <div class="card">
+          <h1>Statistics</h1>
+          <p class="muted">Coming in the next update.</p>
+        </div>
+      </section>
+
+      <section id="settingsPage" class="page">
+        <div class="card">
+          <h1>Settings</h1>
+          <p class="muted">Personal goals will be added soon.</p>
+        </div>
       </section>
     </main>
-
-    <footer>Calorie Track · Version 1.0</footer>
   </div>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="nav-btn active" data-page="homePage">
+      <span class="nav-icon">⌂</span>Home
+    </button>
+    <button class="nav-btn" data-page="diaryPage">
+      <span class="nav-icon">▤</span>Diary
+    </button>
+    <button class="nav-btn" data-page="statsPage">
+      <span class="nav-icon">▥</span>Stats
+    </button>
+    <button class="nav-btn" data-page="settingsPage">
+      <span class="nav-icon">⚙</span>Settings
+    </button>
+  </nav>
+
+  <dialog id="foodDialog">
+    <form id="foodForm">
+      <div class="dialog-header">
+        <h2 id="dialogTitle">Add Food</h2>
+        <button type="button" id="closeDialog" class="close-btn" aria-label="Close">×</button>
+      </div>
+
+      <label for="foodName">Food name</label>
+      <input id="foodName" type="text" maxlength="80" required placeholder="Chicken breast">
+
+      <div class="form-grid">
+        <div>
+          <label for="calories">Calories</label>
+          <input id="calories" type="number" min="0" max="10000" step="0.1" required>
+        </div>
+        <div>
+          <label for="protein">Protein (g)</label>
+          <input id="protein" type="number" min="0" max="1000" step="0.1" required>
+        </div>
+        <div>
+          <label for="carbs">Carbs (g)</label>
+          <input id="carbs" type="number" min="0" max="1000" step="0.1" required>
+        </div>
+        <div>
+          <label for="fat">Fat (g)</label>
+          <input id="fat" type="number" min="0" max="1000" step="0.1" required>
+        </div>
+      </div>
+
+      <label for="meal">Meal</label>
+      <select id="meal">
+        <option value="Breakfast">Breakfast</option>
+        <option value="Lunch">Lunch</option>
+        <option value="Dinner">Dinner</option>
+        <option value="Snack">Snack</option>
+      </select>
+
+      <button type="submit" class="primary-btn" id="saveFoodBtn">Save Food</button>
+    </form>
+  </dialog>
 </body>
 </html>

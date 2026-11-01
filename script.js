@@ -7,13 +7,18 @@ const MACRO_GOALS = {
 };
 
 const STORAGE_KEY = "calorieTrackFoods";
+const MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-function localDate() {
-  const date = new Date();
+function localDate(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function parseDate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function loadFoods() {
@@ -26,28 +31,37 @@ function loadFoods() {
 }
 
 let foods = loadFoods();
+let selectedDate = localDate();
+let editingId = null;
 
 function saveFoods() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(foods));
     return true;
   } catch (error) {
-    console.error("Could not save food records:", error);
-    alert("Storage error. Your changes could not be saved.");
+    console.error("Storage error:", error);
+    alert("Could not save food records.");
     return false;
   }
 }
 
-function todayFoods() {
-  return foods.filter(food => food.date === localDate());
+function getFoods(date) {
+  return foods.filter(food => food.date === date);
 }
 
 function total(items, key) {
-  return items.reduce((sum, item) => sum + item[key], 0);
+  return items.reduce((sum, food) => sum + Number(food[key] || 0), 0);
 }
 
 function format(value) {
   return Math.round(value * 10) / 10;
+}
+
+function makeElement(tag, className, content) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (content !== undefined) element.textContent = content;
+  return element;
 }
 
 function renderMacros(items) {
@@ -60,95 +74,66 @@ function renderMacros(items) {
     fat: "#fbbf24"
   };
 
-  Object.keys(MACRO_GOALS).forEach(key => {
+  for (const key of Object.keys(MACRO_GOALS)) {
     const amount = total(items, key);
-    const percentage = Math.min(
-      (amount / MACRO_GOALS[key]) * 100, 100
+    const percent = Math.min(amount / MACRO_GOALS[key] * 100, 100);
+
+    const wrapper = makeElement("div", "macro");
+    const heading = makeElement("div", "macro-heading");
+
+    heading.append(
+      makeElement("span", "", key[0].toUpperCase() + key.slice(1)),
+      makeElement("span", "", `${format(amount)} / ${MACRO_GOALS[key]} g`)
     );
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "macro";
-
-    const heading = document.createElement("div");
-    heading.className = "macro-heading";
-
-    const label = document.createElement("span");
-    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
-
-    const value = document.createElement("span");
-    value.textContent = `${format(amount)} / ${MACRO_GOALS[key]} g`;
-
-    heading.append(label, value);
-
-    const progress = document.createElement("div");
-    progress.className = "progress";
-
-    const fill = document.createElement("div");
-    fill.className = "progress-fill";
-    fill.style.width = `${percentage}%`;
+    const progress = makeElement("div", "progress");
+    const fill = makeElement("div", "progress-fill");
+    fill.style.width = `${percent}%`;
     fill.style.background = colors[key];
-
     progress.append(fill);
+
     wrapper.append(heading, progress);
     container.append(wrapper);
-  });
+  }
 }
 
-function renderFoodList(items) {
-  const list = document.getElementById("foodList");
-  list.replaceChildren();
+function createFoodRow(food, editable = true) {
+  const row = makeElement("div", "food-item");
+  const details = makeElement("div");
 
-  document.getElementById("foodCount").textContent =
-    `${items.length} foods`;
+  details.append(
+    makeElement("strong", "", food.name),
+    makeElement("p", "",
+      `${food.meal} · P: ${food.protein}g · C: ${food.carbs}g · F: ${food.fat}g`)
+  );
 
-  if (items.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "No food added today.";
-    list.append(empty);
-    return;
-  }
+  const actions = makeElement("div", "food-actions");
+  actions.append(
+    makeElement("span", "food-calories", `${format(food.calories)} kcal`)
+  );
 
-  items.forEach(food => {
-    const row = document.createElement("div");
-    row.className = "food-item";
+  if (editable) {
+    const edit = makeElement("button", "", "Edit");
+    edit.type = "button";
+    edit.addEventListener("click", () => openFoodDialog(food.meal, food));
 
-    const details = document.createElement("div");
-    const name = document.createElement("strong");
-    name.textContent = food.name;
-
-    const info = document.createElement("p");
-    info.textContent =
-      `${food.meal} · P: ${food.protein}g · C: ${food.carbs}g · F: ${food.fat}g`;
-
-    details.append(name, info);
-
-    const actions = document.createElement("div");
-    actions.className = "food-actions";
-
-    const calories = document.createElement("strong");
-    calories.textContent = `${format(food.calories)} kcal`;
-
-    const remove = document.createElement("button");
-    remove.className = "delete-btn";
+    const remove = makeElement("button", "delete-btn", "×");
     remove.type = "button";
-    remove.textContent = "×";
     remove.setAttribute("aria-label", `Delete ${food.name}`);
     remove.addEventListener("click", () => deleteFood(food.id));
 
-    actions.append(calories, remove);
-    row.append(details, actions);
-    list.append(row);
-  });
+    actions.append(edit, remove);
+  }
+
+  row.append(details, actions);
+  return row;
 }
 
-function render() {
-  const items = todayFoods();
+function renderHome() {
+  const items = getFoods(localDate());
   const consumed = total(items, "calories");
   const remaining = DAILY_GOAL - consumed;
-  const percentage = Math.min(
-    (consumed / DAILY_GOAL) * 100, 100
-  );
+  const percentage = Math.min(consumed / DAILY_GOAL * 100, 100);
 
   document.getElementById("goal").textContent = DAILY_GOAL;
   document.getElementById("consumed").textContent = format(consumed);
@@ -159,16 +144,185 @@ function render() {
 
   document.getElementById("todayDate").textContent =
     new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric"
+      weekday: "long", month: "long", day: "numeric"
     });
 
   renderMacros(items);
-  renderFoodList(items);
+
+  const list = document.getElementById("homeFoodList");
+  list.replaceChildren();
+
+  if (items.length === 0) {
+    list.append(makeElement("p", "empty", "No food added today."));
+  } else {
+    items.forEach(food => list.append(createFoodRow(food, false)));
+  }
 }
 
+function renderDiary() {
+  const date = parseDate(selectedDate);
+  const items = getFoods(selectedDate);
+
+  document.getElementById("selectedDateLabel").textContent =
+    selectedDate === localDate() ? "Today" :
+    date.toLocaleDateString("en-US", { weekday: "long" });
+
+  document.getElementById("selectedDateFull").textContent =
+    date.toLocaleDateString("en-US", {
+      month: "long", day: "numeric", year: "numeric"
+    });
+
+  document.getElementById("diaryCalories").textContent =
+    `${format(total(items, "calories"))} kcal`;
+
+  const container = document.getElementById("mealSections");
+  container.replaceChildren();
+
+  const icons = {
+    Breakfast: "☀️",
+    Lunch: "🥗",
+    Dinner: "🌙",
+    Snack: "🍎"
+  };
+
+  for (const meal of MEALS) {
+    const mealFoods = items.filter(food => food.meal === meal);
+    const card = makeElement("section", "card");
+    const header = makeElement("div", "meal-header");
+    const heading = makeElement("h2", "", `${icons[meal]} ${meal}`);
+    const calories = makeElement("p", "",
+      `${format(total(mealFoods, "calories"))} kcal`);
+
+    header.append(heading, calories);
+    card.append(header);
+
+    if (mealFoods.length === 0) {
+      card.append(makeElement("p", "empty", "No food added."));
+    } else {
+      mealFoods.forEach(food => card.append(createFoodRow(food)));
+    }
+
+    const add = makeElement("button", "add-btn", "+ Add Food");
+    add.type = "button";
+    add.addEventListener("click", () => openFoodDialog(meal));
+
+    card.append(add);
+    container.append(card);
+  }
+}
+
+function render() {
+  renderHome();
+  renderDiary();
+}
+
+function showPage(pageId) {
+  document.querySelectorAll(".page").forEach(page => {
+    page.classList.toggle("active", page.id === pageId);
+  });
+
+  document.querySelectorAll(".nav-btn").forEach(button => {
+    button.classList.toggle("active", button.dataset.page === pageId);
+  });
+
+  window.scrollTo(0, 0);
+}
+
+document.querySelectorAll(".nav-btn").forEach(button => {
+  button.addEventListener("click", () => showPage(button.dataset.page));
+});
+
+document.getElementById("openDiary").addEventListener("click", () => {
+  selectedDate = localDate();
+  renderDiary();
+  showPage("diaryPage");
+});
+
+function changeDay(amount) {
+  const date = parseDate(selectedDate);
+  date.setDate(date.getDate() + amount);
+  selectedDate = localDate(date);
+  renderDiary();
+}
+
+document.getElementById("previousDay").addEventListener("click", () => changeDay(-1));
+document.getElementById("nextDay").addEventListener("click", () => changeDay(1));
+
+const dialog = document.getElementById("foodDialog");
+const form = document.getElementById("foodForm");
+
+function openFoodDialog(meal = "Breakfast", food = null) {
+  form.reset();
+  editingId = food ? food.id : null;
+
+  document.getElementById("dialogTitle").textContent =
+    food ? "Edit Food" : "Add Food";
+
+  document.getElementById("meal").value = food ? food.meal : meal;
+
+  if (food) {
+    document.getElementById("foodName").value = food.name;
+    document.getElementById("calories").value = food.calories;
+    document.getElementById("protein").value = food.protein;
+    document.getElementById("carbs").value = food.carbs;
+    document.getElementById("fat").value = food.fat;
+  }
+
+  dialog.showModal();
+}
+
+document.getElementById("closeDialog").addEventListener("click", () => {
+  dialog.close();
+});
+
+form.addEventListener("submit", event => {
+  event.preventDefault();
+
+  const values = {
+    name: document.getElementById("foodName").value.trim(),
+    calories: Number(document.getElementById("calories").value),
+    protein: Number(document.getElementById("protein").value),
+    carbs: Number(document.getElementById("carbs").value),
+    fat: Number(document.getElementById("fat").value),
+    meal: document.getElementById("meal").value
+  };
+
+  const numericFields = ["calories", "protein", "carbs", "fat"];
+
+  if (!values.name || !numericFields.every(key =>
+    Number.isFinite(values[key]) && values[key] >= 0
+  )) {
+    alert("Please enter valid food information.");
+    return;
+  }
+
+  const previous = [...foods];
+
+  if (editingId !== null) {
+    foods = foods.map(food =>
+      food.id === editingId ? { ...food, ...values } : food
+    );
+  } else {
+    foods.push({
+      id: crypto.randomUUID(),
+      date: selectedDate,
+      ...values
+    });
+  }
+
+  if (!saveFoods()) {
+    foods = previous;
+    return;
+  }
+
+  dialog.close();
+  editingId = null;
+  render();
+});
+
 function deleteFood(id) {
+  if (!confirm("Delete this food record?")) return;
+
   const previous = foods;
   foods = foods.filter(food => food.id !== id);
 
@@ -179,38 +333,5 @@ function deleteFood(id) {
 
   render();
 }
-
-document.getElementById("foodForm").addEventListener("submit", event => {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-
-  const food = {
-    id: crypto.randomUUID(),
-    date: localDate(),
-    name: document.getElementById("foodName").value.trim(),
-    calories: Number(document.getElementById("calories").value),
-    protein: Number(document.getElementById("protein").value),
-    carbs: Number(document.getElementById("carbs").value),
-    fat: Number(document.getElementById("fat").value),
-    meal: document.getElementById("meal").value
-  };
-
-  if (!food.name || !["calories", "protein", "carbs", "fat"]
-    .every(key => Number.isFinite(food[key]) && food[key] >= 0)) {
-    alert("Please enter valid food information.");
-    return;
-  }
-
-  foods.push(food);
-
-  if (!saveFoods()) {
-    foods.pop();
-    return;
-  }
-
-  form.reset();
-  render();
-});
 
 render();
